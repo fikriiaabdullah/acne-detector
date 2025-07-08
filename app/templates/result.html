@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hasil Analisis Jerawat</title>
+
+  <!-- Google Fonts & Bootstrap -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="/static/fav-icon/favicon.ico" />
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Montserrat', sans-serif;
+      background: linear-gradient(to right, #dfefff, #f4fafe);
+    }
+
+    .navbar {
+      background-color: #ffffff !important;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .navbar-brand span:first-child {
+      color: #39b0e0;
+    }
+
+    .navbar-brand span:last-child {
+      color: #ed56de;
+    }
+
+    .result-container {
+      max-width: 850px;
+      margin: 6rem auto 3rem auto;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+      padding: 2.5rem;
+    }
+
+    .title {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: #39b0e0;
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .result-img {
+      display: block;
+      margin: 0 auto 2rem auto;
+      border-radius: 1rem;
+      max-width: 100%;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .patient-info {
+      background: #f8f9fa;
+      border-radius: 0.8rem;
+      padding: 1rem 1.5rem;
+      margin-bottom: 1.8rem;
+      font-size: 1.05rem;
+    }
+
+    .info-label {
+      font-weight: 600;
+      color: #1e3c72;
+    }
+
+    .info-value {
+      color: #333;
+      font-weight: 500;
+    }
+
+    .table th {
+      background-color: #e3f2fd;
+      color: #1565c0;
+      font-weight: 700;
+    }
+
+    .table td {
+      font-weight: 500;
+    }
+
+    .btn-main {
+      font-weight: 600;
+      font-size: 1.05rem;
+      padding: 0.7rem 1.5rem;
+      border-radius: 12px;
+      margin: 0.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .btn-success {
+      background-color: #39b0e0;
+      border: none;
+    }
+
+    .btn-success:hover {
+      background-color: #2a8cbf;
+      color: white;
+    }
+
+    .btn-outline-primary {
+      border: 2px solid #39b0e0;
+      color: #39b0e0;
+    }
+
+    .btn-outline-primary:hover {
+      background: #39b0e0;
+      color: white;
+    }
+
+    footer {
+      background: #fff;
+      padding: 1rem 0;
+      text-align: center;
+      font-size: 0.9rem;
+      border-top: 1px solid #ddd;
+      color: #666;
+    }
+
+    @media (max-width: 768px) {
+      .result-container {
+        margin: 5rem 1rem 2rem 1rem;
+        padding: 1.5rem;
+      }
+
+      .title {
+        font-size: 1.8rem;
+      }
+
+      .btn-main {
+        width: 100%;
+        margin-bottom: 0.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg fixed-top">
+    <div class="container-fluid px-4">
+      <a class="navbar-brand" href="/">
+        <span>Acne</span><span>Care</span>
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item"><a class="nav-link active" href="/">Beranda</a></li>
+          <li class="nav-item"><a class="nav-link" href="/instructions">Panduan</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Konten -->
+  <div class="result-container">
+    <div class="title">Hasil Analisis Jerawat</div>
+    <img src="data:image/jpeg;base64,{{ image_data }}" alt="Foto Wajah" class="result-img" />
+    
+    <div class="patient-info">
+      <div><span class="info-label">Nama Pasien:</span> <span class="info-value">{{ patientName }}</span></div>
+      <div><span class="info-label">Nomor Registrasi:</span> <span class="info-value">{{ patientRegNo }}</span></div>
+      <div><span class="info-label">Umur:</span> <span class="info-value">{{ patientAge }}</span></div>
+      <div><span class="info-label">Jenis Kelamin:</span> <span class="info-value">{{ patientSex }}</span></div>
+    </div>
+
+    <table class="table table-bordered text-center">
+      <thead>
+        <tr>
+          <th>Jenis Jerawat</th>
+          <th>Jumlah</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Papula</td><td>{{ papula }}</td></tr>
+        <tr><td>Komedo</td><td>{{ komedo }}</td></tr>
+        <tr><td>Pustula</td><td>{{ pustula }}</td></tr>
+      </tbody>
+    </table>
+
+    <div class="text-center mt-4">
+      <a href="/download_result" class="btn btn-success btn-main" download>Unduh Hasil</a>
+      <a href="/" class="btn btn-outline-primary btn-main">Analisis Ulang</a>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <p>
+      <a class="footer-company-name" href="/">
+        <span style="color: #39b0e0">Acne</span><span style="color: #ed56de">Care</span>
+      </a> &copy; <span id="currentYear"></span>
+    </p>
+  </footer>
+
+  <!-- Script Tahun -->
+  <script>
+    document.getElementById('currentYear').textContent = new Date().getFullYear();
+  </script>
+  <script src="{{ url_for('static', filename='javascript/behaviour.js') }}"></script>
+</body>
+</html>
