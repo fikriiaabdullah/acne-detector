@@ -20,80 +20,95 @@ model = project.version(6).model
 
 app = Flask(__name__)
 
+def debug_detection_pipeline(image, model):
+    """Debug function to see where detections are being lost"""
+    temp_path = 'debug_temp.jpg'
+    image.save(temp_path, quality=95)
+    
+    try:
+        # Test raw Roboflow predictions
+        result = model.predict(temp_path, confidence=10, overlap=50)
+        raw_predictions = result.json()['predictions']
+        print(f"Raw Roboflow predictions (conf=10): {len(raw_predictions)}")
+        
+        for i, pred in enumerate(raw_predictions[:5]):  # Show first 5
+            print(f"  Prediction {i}: {pred['class']} - confidence: {pred['confidence']:.1f}%")
+        
+        return raw_predictions
+    except Exception as e:
+        print(f"Debug error: {e}")
+        return []
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
 def preprocess_image_for_detection(image):
-    """Enhanced image preprocessing for better acne detection"""
+    """Gentler image preprocessing that preserves acne features"""
     # Convert PIL to OpenCV
     cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
     
-    # 1. Noise reduction with bilateral filter (preserves edges)
-    denoised = cv2.bilateralFilter(cv_image, 9, 75, 75)
+    # 1. Very gentle noise reduction
+    denoised = cv2.bilateralFilter(cv_image, 5, 50, 50)  # Reduced parameters
     
-    # 2. CLAHE for better contrast in different lighting
+    # 2. Mild contrast enhancement
     lab = cv2.cvtColor(denoised, cv2.COLOR_BGR2LAB)
     l, a, b = cv2.split(lab)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(4,4))  # Reduced enhancement
     l = clahe.apply(l)
     enhanced = cv2.merge([l, a, b])
     enhanced = cv2.cvtColor(enhanced, cv2.COLOR_LAB2BGR)
     
-    # 3. Subtle sharpening to enhance acne details
-    kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]]) * 0.5
-    sharpened = cv2.filter2D(enhanced, -1, kernel)
-    
-    # 4. Color balance adjustment for skin tone normalization
-    sharpened = cv2.addWeighted(enhanced, 0.7, sharpened, 0.3, 0)
-    
-    return cv2.cvtColor(sharpened, cv2.COLOR_BGR2RGB)
+    # Skip aggressive sharpening - just return enhanced image
+    return cv2.cvtColor(enhanced, cv2.COLOR_BGR2RGB)
 
 def detect_face_regions(image):
-    """Improved face detection with multiple cascades"""
+    """More reliable face detection"""
     cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
     gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
     
-    # Try multiple cascade classifiers
-    face_cascades = [
-        cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-    ]
+    # Use default cascade with more lenient parameters
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
     
-    all_faces = []
-    for cascade in face_cascades:
-        if cascade.empty():
-            continue
-            
-        faces = cascade.detectMultiScale(
-            gray, 
-            scaleFactor=1.05, 
-            minNeighbors=3, 
-            minSize=(80, 80),
-            maxSize=(500, 500),
-            flags=cv2.CASCADE_SCALE_IMAGE
-        )
-        
-        # Convert to list if it's a numpy array
-        if len(faces) > 0:
-            all_faces.extend(faces.tolist())
-    
-    if len(all_faces) == 0:
+    if face_cascade.empty():
+        print("Face cascade not loaded properly")
         return None
     
-    # Simple approach: just return the largest face
-    largest_face = max(all_faces, key=lambda face: face[2] * face[3])
+    # More lenient face detection parameters
+    faces = face_cascade.detectMultiScale(
+        gray, 
+        scaleFactor=1.1,  # More lenient
+        minNeighbors=3,   # Reduced
+        minSize=(50, 50), # Smaller minimum
+        maxSize=(600, 600),
+        flags=cv2.CASCADE_SCALE_IMAGE
+    )
+    
+    print(f"Detected {len(faces)} faces")
+    
+    if len(faces) == 0:
+        # If no face detected, return None but don't fail completely
+        print("No face detected - will process entire image")
+        return None
+    
+    # Return the largest face
+    largest_face = max(faces, key=lambda face: face[2] * face[3])
+    print(f"Using face region: {largest_face}")
     return tuple(largest_face)
 
 def hybrid_acne_detection(image, roboflow_model, face_coords):
-    """Combine Roboflow model predictions with CV-based validation"""
+    """Balanced acne detection with less restrictive validation"""
     
     # 1. Get Roboflow predictions with multiple confidence levels
     temp_path = 'temp_detection_image.jpg'
     image.save(temp_path, quality=95)
     
-    # Try multiple confidence thresholds and combine results
+    # Try multiple confidence thresholds but be less aggressive
     all_predictions = []
-    confidence_levels = [20, 25, 30, 35]
+    confidence_levels = [15, 20, 25, 30]  # Start even lower
     
     for conf in confidence_levels:
         try:
-            result = roboflow_model.predict(temp_path, confidence=conf, overlap=25)
+            result = roboflow_model.predict(temp_path, confidence=conf, overlap=30)
             predictions = result.json()['predictions']
             
             # Add confidence level to each prediction for filtering
@@ -108,38 +123,95 @@ def hybrid_acne_detection(image, roboflow_model, face_coords):
     if os.path.exists(temp_path):
         os.remove(temp_path)
     
-    # 2. Filter predictions using face region
+    print(f"Raw predictions before filtering: {len(all_predictions)}")
+    
+    # 2. Apply loose face region filtering (if face detected)
     if face_coords:
         face_x, face_y, face_w, face_h = face_coords
         face_predictions = []
         
+        # Expand face region significantly for more inclusive detection
+        padding = 50  # Increased padding
         for pred in all_predictions:
             pred_center_x = pred['x']
             pred_center_y = pred['y']
             
-            # Check if prediction is within face region (with some padding)
-            padding = 20
+            # More lenient face region check
             if (face_x - padding <= pred_center_x <= face_x + face_w + padding and
                 face_y - padding <= pred_center_y <= face_y + face_h + padding):
                 face_predictions.append(pred)
         
         all_predictions = face_predictions
+        print(f"Predictions after face filtering: {len(all_predictions)}")
     
-    # 3. Remove duplicates using Non-Maximum Suppression
-    filtered_predictions = apply_nms(all_predictions, overlap_threshold=0.3)
+    # 3. Apply gentler NMS
+    filtered_predictions = apply_gentle_nms(all_predictions, overlap_threshold=0.4)
+    print(f"Predictions after NMS: {len(filtered_predictions)}")
     
-    # 4. CV-based validation for each prediction
+    # 4. Apply basic validation (much less strict)
     validated_predictions = []
     cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
     
     for pred in filtered_predictions:
-        if validate_acne_spot(cv_image, pred):
-            # Improve classification based on visual features
-            improved_class = improve_acne_classification(cv_image, pred)
-            pred['class'] = improved_class
+        if basic_validate_acne_spot(cv_image, pred):
+            # Keep original classification or improve it
             validated_predictions.append(pred)
     
+    print(f"Final validated predictions: {len(validated_predictions)}")
     return validated_predictions
+
+def apply_gentle_nms(predictions, overlap_threshold=0.4):
+    """Apply gentler Non-Maximum Suppression"""
+    if not predictions:
+        return []
+    
+    # Convert to format needed for NMS
+    boxes = []
+    scores = []
+    for pred in predictions:
+        x1 = pred['x'] - pred['width'] / 2
+        y1 = pred['y'] - pred['height'] / 2
+        x2 = pred['x'] + pred['width'] / 2
+        y2 = pred['y'] + pred['height'] / 2
+        
+        boxes.append([x1, y1, x2, y2])
+        scores.append(pred['confidence'])
+    
+    boxes = np.array(boxes, dtype=np.float32)
+    scores = np.array(scores, dtype=np.float32)
+    
+    # Apply OpenCV's NMS with more lenient threshold
+    indices = cv2.dnn.NMSBoxes(boxes.tolist(), scores.tolist(), 0.1, overlap_threshold)
+    
+    if len(indices) > 0:
+        indices = indices.flatten()
+        return [predictions[i] for i in indices]
+    else:
+        return predictions  # Return all if NMS fails
+
+def basic_validate_acne_spot(cv_image, prediction):
+    """Much more lenient validation"""
+    try:
+        # Extract region around prediction
+        x, y = int(prediction['x']), int(prediction['y'])
+        w, h = int(prediction['width']), int(prediction['height'])
+        
+        # Basic size validation (very lenient)
+        area = w * h
+        if area < 10 or area > 2000:  # Much more lenient size range
+            return False
+        
+        # Basic aspect ratio check (very lenient)
+        aspect_ratio = w / h if h > 0 else 0
+        if aspect_ratio < 0.1 or aspect_ratio > 10.0:  # Very lenient aspect ratio
+            return False
+        
+        # If it passes basic checks, accept it
+        return True
+        
+    except Exception as e:
+        print(f"Validation error: {e}")
+        return True  # Accept if validation fails
 
 def apply_nms(predictions, overlap_threshold=0.3):
     """Apply Non-Maximum Suppression to remove duplicate detections"""
@@ -342,6 +414,9 @@ def upload_front_face():
         # Preprocess image for better detection
         preprocessed_image = preprocess_image_for_detection(original_image)
         processed_pil = Image.fromarray(preprocessed_image)
+        
+        # Add this line after preprocessing but before hybrid detection
+        debug_predictions = debug_detection_pipeline(processed_pil, model)
         
         # Detect face region
         face_coords = detect_face_regions(processed_pil)
