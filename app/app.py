@@ -1,6 +1,9 @@
 from flask import Flask, render_template, url_for, request, send_file
 import io
 from PIL import Image, ImageDraw, ImageFont
+import os
+if os.getenv("HOME") is None:
+    os.environ["HOME"] = os.getenv("USERPROFILE")
 from roboflow import Roboflow
 import os
 import random
