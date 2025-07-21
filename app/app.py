@@ -11,6 +11,7 @@ import base64
 import re
 import cv2
 import numpy as np
+import tempfile
 
 default_confidence = 25  # Lowered for better detection
 max_size = (640, 640)    # Increased resolution
@@ -439,9 +440,9 @@ def upload_front_face():
         cv2.putText(cv_image, 'Face Detected', (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
         
         # Count acne types (removed comedone)
-        nodule_count = len([d for d in acne_detections if d['class'].lower() in ['nodule']])
-        pustule_count = len([d for d in acne_detections if d['class'].lower() in ['pustule']])
-        papule_count = len([d for d in acne_detections if d['class'].lower() in ['papule']])
+        nodule_count = len([d for d in acne_detections if d['class'].lower() in ['nodules']])
+        pustule_count = len([d for d in acne_detections if d['class'].lower() in ['pustules']])
+        papule_count = len([d for d in acne_detections if d['class'].lower() in ['papules']])
         
         # Draw detection boxes (removed comedone colors)
         colors = {
@@ -467,12 +468,16 @@ def upload_front_face():
             cv2.rectangle(cv_image, (x1, y1), (x2, y2), color, 2)
             
             # Add label with confidence
-            label = f"{detection['class']} ({detection['confidence']:.0f}%)"
-            label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)[0]
+            conf = int(detection['confidence'] * 100)
+            if conf == 0:
+                label = f"{detection['class']} (%)"
+            else:
+                label = f"{detection['class']} ({conf}%)"
+            
             
             # Background for text
-            cv2.rectangle(cv_image, (x1, y1 - label_size[1] - 8), 
-                         (x1 + label_size[0] + 4, y1), color, -1)
+            # cv2.rectangle(cv_image, (x1, y1 - label_size[1] - 8), 
+            #              (x1 + label_size[0] + 4, y1), color, -1)
             
             # Text
             cv2.putText(cv_image, label, (x1 + 2, y1 - 4), 
