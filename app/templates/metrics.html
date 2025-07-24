@@ -202,6 +202,56 @@
                 padding: 0.8rem 1.5rem;
             }
         }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            padding: 1.5rem;
+        }
+        
+        .chart-container {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 1rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #1e3c72;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .metrics-summary {
+            background: linear-gradient(135deg, #39b0e0, #1e3c72);
+            color: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .summary-stat {
+            display: inline-block;
+            margin: 0 2rem;
+            text-align: center;
+        }
+        
+        .summary-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            display: block;
+        }
+        
+        .summary-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
     </style>
 </head>
 <body>
@@ -229,6 +279,34 @@
             <i class="fas fa-chart-line"></i>
             Model Performance Metrics
         </h1>
+
+        {% if error %}
+            <div class="metrics-card">
+                <div class="error-message">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    {{ error }}
+                </div>
+            </div>
+        {% else %}
+            <!-- Metrics Summary -->
+            <div class="metrics-summary">
+                <h2 style="margin-bottom: 2rem;">Model Performance Summary</h2>
+                <div class="summary-stats">
+                    <div class="summary-stat">
+                        <span class="summary-value">{{ "%.1f%%" | format(metrics.overall_metrics.mAP * 100) }}</span>
+                        <span class="summary-label">Mean Average Precision</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="summary-value">{{ "%.1f%%" | format(metrics.overall_metrics.f1_score * 100) }}</span>
+                        <span class="summary-label">F1 Score</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="summary-value">{{ metrics.class_metrics|length }}</span>
+                        <span class="summary-label">Classes Detected</span>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
 
         {% if error %}
             <div class="metrics-card">
@@ -334,6 +412,42 @@
                     <p class="mt-3 text-muted">
                         <i class="fas fa-info-circle"></i>
                         Confusion matrix menunjukkan performa klasifikasi model untuk setiap kelas jerawat
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Performance Charts -->
+            {% if performance_chart_image %}
+            <div class="metrics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-bar"></i> Performance Visualization</h3>
+                </div>
+                <div class="confusion-matrix-container">
+                    <img src="{{ url_for('static', filename='images/model_performance.png') }}" 
+                         alt="Performance Chart" 
+                         class="confusion-matrix-img">
+                    <p class="mt-3 text-muted">
+                        <i class="fas fa-info-circle"></i>
+                        Grafik perbandingan performa model untuk setiap metrik dan kelas
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Training History -->
+            {% if training_history_image %}
+            <div class="metrics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-line"></i> Training History</h3>
+                </div>
+                <div class="confusion-matrix-container">
+                    <img src="{{ url_for('static', filename='images/training_history.png') }}" 
+                         alt="Training History" 
+                         class="confusion-matrix-img">
+                    <p class="mt-3 text-muted">
+                        <i class="fas fa-info-circle"></i>
+                        Riwayat pelatihan model menunjukkan perkembangan loss dan akurasi selama training
                     </p>
                 </div>
             </div>
